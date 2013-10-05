@@ -1,0 +1,19 @@
+ GOOS
+ Duck-typing library for C
+ 
+ This lib was originally put together to port some Python code to C. Taking
+this approach is a very, very bad idea! It's much easier (and maintainable) 
+to just use standard C techniques instead of trying to shoehorn in interpreted
+launguage approaches. I haven't yet found a use for this code but if you do,
+please let me know!
+
+ The Makefile included will build a testset that can be used to validate any
+changes made to the lib. Otherwise, just pull the files into your project.
+
+ For usage examples, please see the testcases set up in the testClass()
+function of test.c.
+
+ Good luck and fly safe!
+ 
+ 
+ Ryan
