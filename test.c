@@ -41,92 +41,92 @@ goos_data methodTestIO(goos_object* self, void* args) {
 
 void testDispatch(void) {
 	printf("Testing goos_dispatcher add and call\n");
-	goos_dispatcher* testDispatch =  goos_dispatcher_new();
-	goos_dispatcher_addMethod(testDispatch, methodTest1, "methodTest1");
+	goos_object* testDispatch =  goos_object_new();
+	goos_object_addMethod(testDispatch, methodTest1, "methodTest1");
 	methodTestSuccess = 0;
-	goos_dispatcher_call(testDispatch, "methodTest1", nil, nil);
+	goos_object_call(testDispatch, "methodTest1", nil);
 	if (methodTestSuccess == 1) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Testing goos_dispatcher_call on bad methodName\n");
-	if (goos_dispatcher_call(testDispatch, "NoMethod", nil, nil).e == goos_errorCode_NO_HANDLE) printf("Success\n");
+	if (goos_object_call(testDispatch, "NoMethod", nil).e == goos_errorCode_NO_HANDLE) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Testing goos_dispatcher with second method\n");
-	goos_dispatcher_addMethod(testDispatch, methodTest2, "methodTest2");
+	goos_object_addMethod(testDispatch, methodTest2, "methodTest2");
 	methodTestSuccess = 0;
-	goos_dispatcher_call(testDispatch, "methodTest2", nil, nil);
+	goos_object_call(testDispatch, "methodTest2", nil);
 	if (methodTestSuccess == 2) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Double-checking the first method again...\n");
 	methodTestSuccess = 0;
-	goos_dispatcher_call(testDispatch, "methodTest1", nil, nil);
+	goos_object_call(testDispatch, "methodTest1", nil);
 	if (methodTestSuccess == 1) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Testing input/output\n");
-	goos_dispatcher_addMethod(testDispatch, methodTestIO, "methodTestIO");
+	goos_object_addMethod(testDispatch, methodTestIO, "methodTestIO");
 	int input = 21;
-	if (goos_dispatcher_call(testDispatch, "methodTestIO", nil, (void*)&input).d == 42) printf("Success\n");
+	if (goos_object_call(testDispatch, "methodTestIO", (void*)&input).d == 42) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Testing method removal\n");
-	goos_dispatcher_removeHandle(testDispatch, "methodTest2");
-	if (goos_dispatcher_call(testDispatch, "methodTest2", nil, nil).e == goos_errorCode_NO_HANDLE) printf("Success\n");
+	goos_object_removeHandle(testDispatch, "methodTest2");
+	if (goos_object_call(testDispatch, "methodTest2", nil).e == goos_errorCode_NO_HANDLE) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Double-checking the first method again...\n");
 	methodTestSuccess = 0;
-	goos_dispatcher_call(testDispatch, "methodTest1", nil, nil);
+	goos_object_call(testDispatch, "methodTest1", nil);
 	if (methodTestSuccess == 1) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("...and the third one\n");
-	goos_dispatcher_addMethod(testDispatch, methodTestIO, "methodTestIO");
-	if (goos_dispatcher_call(testDispatch, "methodTestIO", nil, (void*)&input).d == 42) printf("Success\n");
+	goos_object_addMethod(testDispatch, methodTestIO, "methodTestIO");
+	if (goos_object_call(testDispatch, "methodTestIO", (void*)&input).d == 42) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Testing pointer variables\n");
 	int life = 100;
 	goos_data dLife;
 	dLife.pd = &life;
-	goos_dispatcher_addData(testDispatch, dLife, "life");
-	if (*(goos_dispatcher_get(testDispatch, "life").pd) == 100) printf("Success\n");
+	goos_object_addData(testDispatch, dLife, "life");
+	if (*(goos_object_get(testDispatch, "life").pd) == 100) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Modify pointer\n");
 	life = 80;
-	if (*(goos_dispatcher_get(testDispatch, "life").pd) == 80) printf("Success\n");
+	if (*(goos_object_get(testDispatch, "life").pd) == 80) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Testing instance variables\n");
 	int maxLife = 20;
 	goos_data dmLife;
 	dmLife.d = maxLife;
-	goos_dispatcher_addData(testDispatch, dmLife, "maxLife");
-	if (goos_dispatcher_get(testDispatch, "maxLife").d == 20) printf("Success\n");
+	goos_object_addData(testDispatch, dmLife, "maxLife");
+	if (goos_object_get(testDispatch, "maxLife").d == 20) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Modify original but instance stays\n");
 	maxLife = 0;
 	dmLife.d = 0;
-	if (goos_dispatcher_get(testDispatch, "maxLife").d == 20) printf("Success\n");
+	if (goos_object_get(testDispatch, "maxLife").d == 20) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Modify instance variable\n");
 	dmLife.d = 10;
-	goos_dispatcher_set(testDispatch, "maxLife", dmLife);
-	if (goos_dispatcher_get(testDispatch, "maxLife").d == 10) printf("Success\n");
+	goos_object_set(testDispatch, "maxLife", dmLife);
+	if (goos_object_get(testDispatch, "maxLife").d == 10) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	
 	printf("Access method as data\n");
-	if (goos_dispatcher_get(testDispatch, "methodTestIO").e == goos_errorCode_NOT_A_VARIABLE) printf("Success\n");
+	if (goos_object_get(testDispatch, "methodTestIO").e == goos_errorCode_NOT_A_VARIABLE) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 	
 	printf("Access data as method\n");
-	if (goos_dispatcher_call(testDispatch, "maxLife", nil, nil).e == goos_errorCode_NOT_A_METHOD) printf("Success\n");
+	if (goos_object_call(testDispatch, "maxLife", nil).e == goos_errorCode_NOT_A_METHOD) printf("Success\n");
 	else { printf("Failure\n"); exit(0); }
 }
 

@@ -21,11 +21,29 @@ launguage approaches. I haven't yet found a use for this code but if you do,
 please let me know!
  */
 
+/* NOTE: See goos.h for usage info. */
+
 
 #include "goos.h"
 #include "stdlib.h"
 #include "string.h"
 #include "stdio.h"
+
+
+/* If using the system as-intended, you should never have to use the 
+ *  goos_dispatch functions directly! They're used internally by the
+ *  goos_object functions 
+*/
+static goos_dispatcher* goos_dispatcher_new(void);
+static void goos_dispatcher_delete(goos_dispatcher* dispatcher);
+static void goos_dispatcher_addMethod(goos_dispatcher* dispatcher, goos_method method, const char* methodHandle);
+static void goos_dispatcher_addData(goos_dispatcher* dispatcher, goos_data data, const char* methodHandle);
+static int goos_dispatcher_removeHandle(goos_dispatcher* dispatcher, const char* handle);
+static goos_data goos_dispatcher_call(goos_dispatcher* dispatcher, const char* handle, goos_object* callee, void* arg);
+static int goos_dispatcher_find(goos_dispatcher* dispatcher, const char* handle);
+static goos_data goos_dispatcher_get(goos_dispatcher* dispatcher, const char* handle);
+static goos_errorCode goos_dispatcher_set(goos_dispatcher* dispatcher, const char* handle, goos_data data);
+
 
 int goos_version(void) {
 	return 1;
@@ -36,20 +54,20 @@ goos_data goos_returnObject_Nil;
 void goos_init(void) {
 }
 
-goos_dispatcher* goos_dispatcher_new(void) {
+static goos_dispatcher* goos_dispatcher_new(void) {
 	goos_dispatcher* newDispatcher = (goos_dispatcher*)malloc(sizeof(goos_dispatcher));
 	InitMutablePointerArray(&newDispatcher->array);
 	
 	return newDispatcher;
 }
 
-void goos_dispatcher_delete(goos_dispatcher* self) {
+static void goos_dispatcher_delete(goos_dispatcher* self) {
 	FreeMutablePointerArray(&self->array);
 	free(self);
 }
 
 /* hash is djb2. see http://www.cse.yorku.ca/~oz/hash.html */
-unsigned long hash(const char* str) {
+static unsigned long hash(const char* str) {
     unsigned long hash = 5381;
     int c;
 
@@ -66,11 +84,12 @@ typedef struct {
 	char handle[goos_dispatcher_objectInfo_MAX_HANDLE];
 	unsigned long hash;
 } goos_dispatcher_objectInfo;
-void goos_dispatcher_objectInfo_init(goos_dispatcher_objectInfo* self) {
+
+static void goos_dispatcher_objectInfo_init(goos_dispatcher_objectInfo* self) {
 	memset(self, 0, sizeof(goos_dispatcher_objectInfo));
 	self->data.e = goos_errorCode_NOT_VALID_DATA;
 }
-void goos_dispatcher_addMethod(goos_dispatcher* self, goos_method method, const char* handle) {
+static void goos_dispatcher_addMethod(goos_dispatcher* self, goos_method method, const char* handle) {
 	goos_dispatcher_objectInfo* methodInfo = (goos_dispatcher_objectInfo*)malloc(sizeof(goos_dispatcher_objectInfo));
 	goos_dispatcher_objectInfo_init(methodInfo);
 	methodInfo->method=method;
@@ -78,7 +97,7 @@ void goos_dispatcher_addMethod(goos_dispatcher* self, goos_method method, const 
 	strncpy(methodInfo->handle, handle, goos_dispatcher_objectInfo_MAX_HANDLE);
 	MPA_AddPointer(&self->array, methodInfo);
 }
-void goos_dispatcher_addData(goos_dispatcher* self, goos_data data, const char* handle) {
+static void goos_dispatcher_addData(goos_dispatcher* self, goos_data data, const char* handle) {
 	goos_dispatcher_objectInfo* objectInfo = (goos_dispatcher_objectInfo*)malloc(sizeof(goos_dispatcher_objectInfo));
 	goos_dispatcher_objectInfo_init(objectInfo);
 	objectInfo->data=data;
@@ -86,7 +105,7 @@ void goos_dispatcher_addData(goos_dispatcher* self, goos_data data, const char* 
 	MPA_AddPointer(&self->array, objectInfo);
 }
 
-int goos_dispatcher_removeHandle(goos_dispatcher* self, const char* methodHandle) {
+static int goos_dispatcher_removeHandle(goos_dispatcher* self, const char* methodHandle) {
 	int removeCount = 0;
 	int methodIndex;
 	while ((methodIndex = goos_dispatcher_find(self, methodHandle)) >= 0) {
@@ -95,7 +114,7 @@ int goos_dispatcher_removeHandle(goos_dispatcher* self, const char* methodHandle
 	return removeCount;
 }
 
-goos_data goos_dispatcher_call(goos_dispatcher* self, const char* handle, goos_object* callee, void* arg) {
+static goos_data goos_dispatcher_call(goos_dispatcher* self, const char* handle, goos_object* callee, void* arg) {
 	int methodIndex = goos_dispatcher_find(self, handle);
 	if (methodIndex < 0 || methodIndex >= MPA_Length(&self->array)) {
 		printf("ERROR: Handle not found in dispatcher: %s.\n", handle);
@@ -114,7 +133,7 @@ goos_data goos_dispatcher_call(goos_dispatcher* self, const char* handle, goos_o
 	return methodInfo->method(callee, arg);	
 }
 
-goos_data goos_dispatcher_get(goos_dispatcher* self, const char* handle) {
+static goos_data goos_dispatcher_get(goos_dispatcher* self, const char* handle) {
 	int dataIndex = goos_dispatcher_find(self, handle);
 	if (dataIndex < 0 || dataIndex >= MPA_Length(&self->array)) {
 		printf("ERROR: Handle not found in dispatcher: %s.\n", handle);
@@ -134,7 +153,7 @@ goos_data goos_dispatcher_get(goos_dispatcher* self, const char* handle) {
 	return objectInfo->data;	
 }
 
-goos_errorCode goos_dispatcher_set(goos_dispatcher* self, const char* handle, goos_data data) {
+static goos_errorCode goos_dispatcher_set(goos_dispatcher* self, const char* handle, goos_data data) {
 	int dataIndex = goos_dispatcher_find(self, handle);
 	if (dataIndex < 0 || dataIndex >= MPA_Length(&self->array)) {
 		printf("ERROR: Handle not found in dispatcher: %s.\n", handle);
@@ -151,7 +170,7 @@ goos_errorCode goos_dispatcher_set(goos_dispatcher* self, const char* handle, go
 	return goos_errorCode_HAPPY;
 }
 
-int goos_dispatcher_find(goos_dispatcher* self, const char* handle) {
+static int goos_dispatcher_find(goos_dispatcher* self, const char* handle) {
 	unsigned long handleHash = hash(handle);
 	for (int index=0; index<MPA_Length(&self->array); index++) {
 		goos_dispatcher_objectInfo* info = (goos_dispatcher_objectInfo*)MPA_PointerAtIndex(&self->array, index);

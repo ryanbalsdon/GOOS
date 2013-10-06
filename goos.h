@@ -31,12 +31,31 @@ please let me know!
 #define nil (void*)0
 #endif
 
+/* goos_version
+ *  Returns an int version number. 
+ */
 int goos_version(void);
+
+/* goos_init
+ *  Not currently used for anything and doesn't have to be run. Was originally
+ * meant to be a place to setup a set of standard classes but the project never 
+ * made it that far...
+ */
 void goos_init(void);
 
+/* A goos_object is more of an instance/object than a real class. Because
+ *  the implementation details of a class and an object would be identical,
+ *  there's no need to separate them out. An instance of a class can be
+ *  created by sub-classing or inhereting from the class. This approach lets
+ *  us modify class definitions at run-time and have all existing instances 
+ *  use the modifcations.
+*/
 struct goos_object_s;
 typedef struct goos_object_s goos_object;
+struct goos_dispatcher_s;
+typedef struct goos_dispatcher_s goos_dispatcher;
 
+/* These error codes are returned in goos_data.e */
 typedef enum {
 	goos_errorCode_HAPPY,
 	goos_errorCode_NO_HANDLE,
@@ -45,6 +64,13 @@ typedef enum {
 	goos_errorCode_NOT_VALID_DATA,
 	goos_errorCode_WTF
 } goos_errorCode;
+
+/* A quick and dirty way to handle return codes without pointers (and 
+ *  allocating mem) in a system without any sort of garbage collection.
+ *  All metods are expected to return one of these but can return the
+ *  global goos_returnObject_Nil if the method doesn't have to return
+ *  anything.
+*/
 typedef struct {
 	union {
 		goos_object* o;
@@ -60,38 +86,91 @@ typedef struct {
 } goos_data;
 extern goos_data goos_returnObject_Nil;
 
+/* All methods must conform to this prototype! The first argument is the
+ *  calling class. The second object is a void* that can be cast to
+ *  whatever you need. The return is a goos_data struct.
+*/
 typedef goos_data (*goos_method)(goos_object*, void*);
 
-typedef struct goos_dispatcher_s {
-	MutablePointerArray array;
-} goos_dispatcher;
-
-goos_dispatcher* goos_dispatcher_new(void);
-void goos_dispatcher_delete(goos_dispatcher* dispatcher);
-void goos_dispatcher_addMethod(goos_dispatcher* dispatcher, goos_method method, const char* methodHandle);
-void goos_dispatcher_addData(goos_dispatcher* dispatcher, goos_data data, const char* methodHandle);
-int goos_dispatcher_removeHandle(goos_dispatcher* dispatcher, const char* handle);
-goos_data goos_dispatcher_call(goos_dispatcher* dispatcher, const char* handle, goos_object* callee, void* arg);
-int goos_dispatcher_find(goos_dispatcher* dispatcher, const char* handle);
-goos_data goos_dispatcher_get(goos_dispatcher* dispatcher, const char* handle);
-goos_errorCode goos_dispatcher_set(goos_dispatcher* dispatcher, const char* handle, goos_data data);
-
-
+/* The actuall object/class struct is very simple. A single baseClass
+ *  means that multiple inheritance is not supported. All of the instance
+ *  methods and variables are saved in dispatch.
+*/
+struct goos_dispatcher_s {
+	MutablePointerArray array; /* This is a C array with some convenience functions */
+};
 struct goos_object_s {
 	goos_object* baseClass;
 	goos_dispatcher* dispatch;
 };
+
+/* goos_object_new
+ *  Allocates a new object and returns it
+ */
 goos_object* goos_object_new(void);
+
+/* goos_object_delete
+ *  De-allocates the object
+ */
 void goos_object_delete(goos_object* class);
+
+/* goos_object_addMethod
+ *  Defines/adds an instance method if this is a class instance or a class
+ * method if this is a class.
+ */
 void goos_object_addMethod(goos_object* class, goos_method method, const char* methodHandle);
+
+/* goos_object_addData
+ *  Defines/adds an instance variable if this is a class instance or a class
+ * variable if this is a class.
+ */
 void goos_object_addData(goos_object* class, goos_data data, const char* methodHandle);
+
+/* goos_object_removeHandle
+ *  Undefines/removes a handle (either method or a variable) from the object. This
+ * will not affect the baseClasses if the handle is defined for them too.
+ */
 int goos_object_removeHandle(goos_object* class, const char* handle);
+
+/* goos_object_call
+ *  Calls a method based on handle. If the method doesn't exist in the
+ * object, it will try calling it in the baseClass. If the method doesn't exist
+ * in the tree, an error is returned.
+ */
 goos_data goos_object_call(goos_object* class, const char* handle, void* arg);
+
+/* goos_object_callSuper
+ *  Similar to goos_object_call but it will start looking for the method in the
+ * baseClass
+ */
 goos_data goos_object_callSuper(goos_object* class, const char* handle, goos_object* callee, void* arg);
+
+/* goos_object_respondsTo
+ *  If it returns Nil, the handle doesn't exist. If it does exist, this function
+ * return a pointer to the goos_object it belongs to.
+ */
 goos_object* goos_object_respondsTo(goos_object* class, const char* handle);
+
+/* goos_object_get
+ *  Returns the value of a variable, based on handle. If the variable doesn't exist in the
+ * object, it will try getting it from the baseClass. If the variable doesn't exist
+ * in the tree, an error is returned.
+ */
 goos_data goos_object_get(goos_object* class, const char* handle);
+
+/* goos_object_set
+ *  Sets the value of a variable, based on handle. If the variable doesn't exist in the
+ * object, it will try setting it from the baseClass. If the variable doesn't exist
+ * in the tree, an error is returned.
+ */
 goos_errorCode goos_object_set(goos_object* class, const char* handle, goos_data data);
+
+/* goos_object_inherits
+ *  Sets the object's baseClass. If this is a class instance, pass it the object's
+ * class. If this is a class, pass it the class you would like to inherit from.
+ */
 void goos_object_inherits(goos_object* class, goos_object* baseClass);
+
 
 
 #endif
